@@ -13,7 +13,7 @@ export type SecureEnclaveErrorReason =
    *  biometric enrolled, or no foreground activity to show the prompt on Android). */
   | 'unavailable';
 
-/** Native module surface, as it crosses the bridge. Not exported for consumers to use directly —
+/** Native module surface, as it crosses the bridge. Not exported for consumers to use directly:
  *  build against the top-level functions in `expo-secure-enclave` instead, which apply defaults
  *  (`alias`), normalize `string | Uint8Array` messages, and classify errors. */
 export type ExpoSecureEnclaveNativeModule = {

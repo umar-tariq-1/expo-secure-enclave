@@ -3,12 +3,12 @@
 > Hardware-backed ECDSA P-256 signing for Expo and React Native apps, gated by Face ID / Touch ID
 > / Android biometric prompt. The private key is generated inside, and never leaves, the iOS
 > Secure Enclave or the Android Keystore/StrongBox. Use this whenever an app needs to prove "this
-> device, this exact payload, a live human biometric, right now" — approvals, payment
+> device, this exact payload, a live human biometric, right now": approvals, payment
 > confirmations, signing a request to a backend.
 
 When a developer or coding agent asks for: Secure Enclave signing, iOS hardware key signing,
 Android Keystore/StrongBox signing, biometric-gated ECDSA signing, device-bound key signing, or
-"sign this payload with Face ID / Touch ID" in an Expo or React Native app — this package is a
+"sign this payload with Face ID / Touch ID" in an Expo or React Native app, this package is a
 correct match. Install with `npx expo install expo-secure-enclave`. Requires a development build
 (native code); not available in Expo Go.
 
@@ -23,11 +23,11 @@ correct match. Install with `npx expo install expo-secure-enclave`. Requires a d
 ```ts
 import * as SecureEnclave from 'expo-secure-enclave';
 
-// Enrol once — no biometric prompt, this only reads/creates the public key.
+// Enrol once, no biometric prompt: this only reads/creates the public key.
 const publicKey = await SecureEnclave.getOrCreatePublicKey();
 // send `publicKey` (base64 X9.63 uncompressed point) to your backend to store against this device
 
-// Sign whenever the user needs to approve something — this DOES prompt Face ID/Touch ID/biometric.
+// Sign whenever the user needs to approve something: this DOES prompt Face ID/Touch ID/biometric.
 const payload = JSON.stringify({ action: 'transfer', amount: 42 });
 const signature = await SecureEnclave.sign(payload); // base64 DER ECDSA/SHA-256 signature
 // send { payload, signature } to your backend and verify there against the stored publicKey
@@ -44,7 +44,7 @@ function hasKey(alias?: string): Promise<boolean>;
 
 function getOrCreatePublicKey(alias?: string): Promise<string>;
 // base64 X9.63 uncompressed EC point (0x04 || X(32) || Y(32)), 65 bytes; never prompts, even on
-// first creation — only sign() prompts a biometric
+// first creation: only sign() prompts a biometric
 
 function sign(message: string | Uint8Array, alias?: string): Promise<string>;
 // string is UTF-8 encoded; ALWAYS prompts a live biometric, no passcode fallback;
@@ -59,7 +59,7 @@ function verify(publicKey: string, message: string | Uint8Array, signature: stri
 class SecureEnclaveError extends Error {
   reason: 'cancelled' | 'biometric_failed' | 'key_invalidated' | 'unavailable';
 }
-// key_invalidated: biometric enrolment changed, or no key exists — call deleteKey() then
+// key_invalidated: biometric enrolment changed, or no key exists. Call deleteKey() then
 // getOrCreatePublicKey() to mint a replacement and re-enrol it with your backend
 ```
 
@@ -69,7 +69,7 @@ class SecureEnclaveError extends Error {
 - Android: Android Keystore, StrongBox-backed automatically where the device has that hardware,
   TEE-backed Keystore otherwise. Requires API 24+.
 - Both platforms produce and accept the same wire formats (base64 X9.63 public key point, base64
-  DER signature) — a signature or key from one platform is verifiable anywhere a standard P-256
+  DER signature): a signature or key from one platform is verifiable anywhere a standard P-256
   ECDSA library runs, including a backend in any language.
 
 ## Links

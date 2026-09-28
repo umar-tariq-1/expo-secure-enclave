@@ -11,4 +11,4 @@ Initial release.
 - Multiple named keys via an optional `alias` parameter.
 
 **Known gap**: the Android native module has not yet been exercised on a real device or emulator
-(see the repo's own testing notes). Please report any issues you hit — this is a new package.
+(see the repo's own testing notes). Please report any issues you hit, this is a new package.

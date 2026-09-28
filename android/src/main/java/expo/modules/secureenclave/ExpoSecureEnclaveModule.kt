@@ -26,13 +26,13 @@ private const val ANDROID_KEYSTORE = "AndroidKeyStore"
 
 // A P-256 (secp256r1) key pair generated INSIDE the Android Keystore, StrongBox-backed where the
 // device supports it (a separate secure-element chip, Android's closest equivalent to iOS's
-// Secure Enclave) and falling back to the TEE-backed Keystore everywhere else — every real Android
+// Secure Enclave) and falling back to the TEE-backed Keystore everywhere else: every real Android
 // device has one or the other. The private key never leaves the Keystore/StrongBox; every
 // operation below hands the Keystore provider a `PrivateKey` handle and asks IT to do the work.
 //
 // `setUserAuthenticationRequired(true)` + `AUTH_BIOMETRIC_STRONG` (or, pre-API 30, the equivalent
 // `setUserAuthenticationValidityDurationSeconds(-1)`) is what makes signing refuse to run without a
-// live, current, STRONG biometric — no device-credential fallback — and what makes the Keystore
+// live, current, STRONG biometric, with no device-credential fallback, and what makes the Keystore
 // invalidate the key automatically when the enrolled biometric set changes
 // (`setInvalidatedByBiometricEnrollment`). This mirrors iOS's `[.privateKeyUsage,
 // .biometryCurrentSet]` exactly: the OS enforces the gate, not app code.
@@ -85,7 +85,7 @@ class ExpoSecureEnclaveModule : Module() {
     }
   }
 
-  /// One Keystore alias per (app, alias) pair — Android Keystore entries are already private to
+  /// One Keystore alias per (app, alias) pair. Android Keystore entries are already private to
   /// this app's own UID, so no bundle-id-style namespacing is needed, just a fixed prefix to keep
   /// this module's own entries apart from anything else the host app stores in the Keystore.
   private fun fullAlias(alias: String) = "expo-secure-enclave.$alias"
@@ -121,7 +121,7 @@ class ExpoSecureEnclaveModule : Module() {
       generator.initialize(spec(useStrongBox = true))
       generator.generateKeyPair()
     } catch (e: StrongBoxUnavailableException) {
-      // Most Android devices don't have a StrongBox chip — the TEE-backed Keystore (still
+      // Most Android devices don't have a StrongBox chip. The TEE-backed Keystore (still
       // hardware-isolated from the app process, just not a discrete secure element) is the normal
       // path, not a degraded one.
       generator.initialize(spec(useStrongBox = false))
@@ -129,7 +129,7 @@ class ExpoSecureEnclaveModule : Module() {
     }
   }
 
-  /// X9.63 uncompressed point (0x04 ‖ X(32) ‖ Y(32), 65 bytes) — the same encoding this module's
+  /// X9.63 uncompressed point (0x04 ‖ X(32) ‖ Y(32), 65 bytes), the same encoding this module's
   /// iOS counterpart produces via `SecKeyCopyExternalRepresentation`, so a public key exported on
   /// either platform verifies identically anywhere else.
   private fun encodePublicKey(publicKey: ECPublicKey): String {
@@ -153,7 +153,7 @@ class ExpoSecureEnclaveModule : Module() {
 
   /// Bridges `BiometricPrompt`'s callback API into a suspend call `AsyncFunction` can await.
   /// `onAuthenticationFailed` (a single non-matching biometric read, e.g. the wrong finger) is
-  /// deliberately NOT treated as a rejection — the system prompt stays open and lets the user try
+  /// deliberately NOT treated as a rejection: the system prompt stays open and lets the user try
   /// again, exactly like the iOS Face ID sheet does. Only `onAuthenticationError` (cancel, lockout,
   /// too many attempts, ...) ends the attempt.
   private suspend fun authenticateAndSign(
@@ -197,7 +197,7 @@ class ExpoSecureEnclaveModule : Module() {
 }
 
 /**
- * One `CodedException` per error this module can throw — `code` crosses the bridge as
+ * One `CodedException` per error this module can throw. `code` crosses the bridge as
  * `error.code` on the JS side (Expo Modules' own convention), which `src/index.ts` reads directly
  * to classify into a `SecureEnclaveErrorReason`, the same four values the iOS module's own
  * `SecureEnclaveException` maps to.

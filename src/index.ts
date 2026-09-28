@@ -106,7 +106,7 @@ export async function isAvailable(): Promise<boolean> {
 }
 
 /**
- * Whether a key already exists for `alias` on this device. Never prompts a biometric — checking a
+ * Whether a key already exists for `alias` on this device. Never prompts a biometric: checking a
  * key's existence, unlike using it, doesn't touch the private key material.
  */
 export async function hasKey(alias: string = DEFAULT_ALIAS): Promise<boolean> {
@@ -115,7 +115,7 @@ export async function hasKey(alias: string = DEFAULT_ALIAS): Promise<boolean> {
 
 /**
  * Returns `alias`'s public key (creating the key pair first if it doesn't exist yet), as a base64
- * X9.63 uncompressed point (`0x04 ‖ X(32) ‖ Y(32)`, 65 bytes) — the standard encoding, the same on
+ * X9.63 uncompressed point (`0x04 ‖ X(32) ‖ Y(32)`, 65 bytes), the standard encoding, the same on
  * both platforms. Never prompts a biometric, including on first creation: only `sign()` does.
  *
  * Call this once per alias, up front (e.g. at enrolment), and send the result to your backend to
@@ -131,16 +131,16 @@ export async function getOrCreatePublicKey(alias: string = DEFAULT_ALIAS): Promi
 
 /**
  * Signs `message` with `alias`'s private key, which never leaves the Secure Enclave (iOS) or
- * Keystore/StrongBox (Android). Always prompts a live biometric check first — there is no way to
+ * Keystore/StrongBox (Android). Always prompts a live biometric check first: there is no way to
  * call this without one, and no device-passcode fallback.
  *
- * `message` is either raw bytes, or a string (encoded as UTF-8) — pass whatever your backend will
+ * `message` is either raw bytes, or a string (encoded as UTF-8): pass whatever your backend will
  * hash and verify against, exactly as-is; this function does not alter it. Returns a base64
  * DER-encoded (ASN.1 SEQUENCE of r, s) ECDSA/SHA-256 signature, verifiable with any standard P-256
- * library — see `verify()` for a ready-made one.
+ * library, see `verify()` for a ready-made one.
  *
  * Throws `SecureEnclaveError`. `reason: 'key_invalidated'` means the enrolled biometrics changed
- * (or no key ever existed) — the old key is unusable; call `deleteKey()` then
+ * (or no key ever existed); the old key is unusable, call `deleteKey()` then
  * `getOrCreatePublicKey()` to mint a replacement and re-enrol it with your backend.
  */
 export async function sign(
@@ -165,12 +165,12 @@ export async function deleteKey(alias: string = DEFAULT_ALIAS): Promise<void> {
 
 /**
  * Verifies a signature from `sign()` against the public key from `getOrCreatePublicKey()`. Pure
- * JS, no native call, no device required — use it for local testing, or anywhere you need to check
+ * JS, no native call, no device required. Use it for local testing, or anywhere you need to check
  * a signature without a round trip to your backend.
  *
  * `lowS: false` is intentional: Apple's Security framework and Android's Keystore don't guarantee
  * a canonical low-S signature the way most JS ECDSA libraries default to expecting, and a
- * genuinely valid signature can carry either — accepting both here means this never spuriously
+ * genuinely valid signature can carry either; accepting both here means this never spuriously
  * rejects a real native signature over a non-canonical (but still mathematically valid) `s` value.
  */
 export function verify(

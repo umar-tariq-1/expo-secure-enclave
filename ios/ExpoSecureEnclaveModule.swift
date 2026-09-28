@@ -4,16 +4,16 @@ import Security
 // A P-256 (secp256r1) key pair created and held ENTIRELY inside the Secure Enclave
 // (`kSecAttrTokenIDSecureEnclave`): the private key never exists as bytes anywhere outside the
 // Enclave, not even transiently in this module's memory. Every operation below hands the Security
-// framework an opaque `SecKey` reference and asks IT to do the work — this module never sees, and
+// framework an opaque `SecKey` reference and asks IT to do the work: this module never sees, and
 // could not leak, the private key itself.
 //
 // `[.privateKeyUsage, .biometryCurrentSet]` on the key's access control is what makes
 // `SecKeyCreateSignature` refuse to run without a live, current biometric, and makes iOS
-// invalidate the key automatically if the enrolled Face ID/Touch ID set changes — there is no app
+// invalidate the key automatically if the enrolled Face ID/Touch ID set changes: there is no app
 // code that could get this gate wrong, because the Enclave itself enforces it.
 //
 // Reading a key's public half or checking whether it exists never touches the private key, so
-// `hasKey`/`getOrCreatePublicKey` never prompt Face ID — only `sign` does.
+// `hasKey`/`getOrCreatePublicKey` never prompt Face ID; only `sign` does.
 public class ExpoSecureEnclaveModule: Module {
   public func definition() -> ModuleDefinition {
     Name("ExpoSecureEnclave")
@@ -47,7 +47,7 @@ public class ExpoSecureEnclaveModule: Module {
       guard let externalRepresentation = SecKeyCopyExternalRepresentation(publicKeyRef, &error) as Data? else {
         throw SecureEnclaveException.unavailable((error?.takeRetainedValue() as Error?)?.localizedDescription ?? "Could not export the public key.")
       }
-      // Already the X9.63 uncompressed point (0x04 ‖ X(32) ‖ Y(32), 65 bytes) — the same encoding
+      // Already the X9.63 uncompressed point (0x04 ‖ X(32) ‖ Y(32), 65 bytes), the same encoding
       // this module's Android counterpart produces, so a public key exported on one platform
       // verifies identically on the other, and against any standard ECDSA P-256 verifier.
       return externalRepresentation.base64EncodedString()
@@ -62,7 +62,7 @@ public class ExpoSecureEnclaveModule: Module {
       }
       var error: Unmanaged<CFError>?
       // Hashes the message internally (SHA-256) and returns a DER-encoded (ASN.1 SEQUENCE of r, s)
-      // signature — the standard ECDSA signature encoding, verifiable with any P-256 library.
+      // signature, the standard ECDSA signature encoding, verifiable with any P-256 library.
       guard
         let signature = SecKeyCreateSignature(
           keyRef,
@@ -90,8 +90,8 @@ public class ExpoSecureEnclaveModule: Module {
     }
   }
 
-  /// One tag per alias, namespaced under this app's own bundle id so multiple apps on the same
-  /// device — and multiple keys within this one app — never collide in the Keychain.
+  /// One tag per alias, namespaced under this app's own bundle id, so multiple apps on the same
+  /// device, and multiple keys within this one app, never collide in the Keychain.
   private static func applicationTag(for alias: String) -> Data {
     let bundleId = Bundle.main.bundleIdentifier ?? "expo.secureenclave"
     return "\(bundleId).secureenclave.\(alias)".data(using: .utf8)!
@@ -149,7 +149,7 @@ public class ExpoSecureEnclaveModule: Module {
   }
 }
 
-/// One `Exception` per error this module can throw — `code` crosses the bridge as `error.code` on
+/// One `Exception` per error this module can throw. `code` crosses the bridge as `error.code` on
 /// the JS side (Expo Modules' own convention), which `src/index.ts` reads directly to classify
 /// into a `SecureEnclaveErrorReason`.
 internal class SecureEnclaveException: Exception {

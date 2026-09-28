@@ -63,22 +63,22 @@ export default function App() {
 
         <Group name="1. isAvailable()">
           <Button title="Check" onPress={checkAvailable} disabled={busy} />
-          <Text style={styles.value}>{available === null ? '—' : String(available)}</Text>
+          <Text style={styles.value}>{available === null ? '-' : String(available)}</Text>
         </Group>
 
         <Group name="2. getOrCreatePublicKey()">
           <Button title="Enrol" onPress={enroll} disabled={busy} />
           <Text style={styles.value} numberOfLines={2}>
-            {publicKey ?? '—'}
+            {publicKey ?? '-'}
           </Text>
         </Group>
 
         <Group name="3. sign() + verify()">
           <Button title="Sign a test message" onPress={signAndVerify} disabled={busy || !publicKey} />
           <Text style={styles.value} numberOfLines={2}>
-            {lastSignature ?? '—'}
+            {lastSignature ?? '-'}
           </Text>
-          <Text style={styles.value}>verified: {verified === null ? '—' : String(verified)}</Text>
+          <Text style={styles.value}>verified: {verified === null ? '-' : String(verified)}</Text>
         </Group>
 
         <Group name="4. deleteKey()">

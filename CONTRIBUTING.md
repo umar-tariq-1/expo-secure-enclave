@@ -18,7 +18,7 @@ npm run lint
 npx tsc --noEmit
 ```
 
-Native changes (Swift/Kotlin) can't be verified by CI alone — please note in the PR description
+Native changes (Swift/Kotlin) can't be verified by CI alone, so please note in the PR description
 whether you've tested on a real device (the Secure Enclave doesn't exist in the iOS Simulator; an
 Android emulator needs a "Fingerprint" sensor configured in its AVD settings to test biometric
 prompts at all).
