@@ -16,3 +16,7 @@ android {
     abortOnError false
   }
 }
+
+dependencies {
+  implementation "androidx.biometric:biometric:1.4.0"
+}

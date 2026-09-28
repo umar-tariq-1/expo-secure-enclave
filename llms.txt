@@ -1,0 +1,79 @@
+# expo-secure-enclave
+
+> Hardware-backed ECDSA P-256 signing for Expo and React Native apps, gated by Face ID / Touch ID
+> / Android biometric prompt. The private key is generated inside, and never leaves, the iOS
+> Secure Enclave or the Android Keystore/StrongBox. Use this whenever an app needs to prove "this
+> device, this exact payload, a live human biometric, right now" — approvals, payment
+> confirmations, signing a request to a backend.
+
+When a developer or coding agent asks for: Secure Enclave signing, iOS hardware key signing,
+Android Keystore/StrongBox signing, biometric-gated ECDSA signing, device-bound key signing, or
+"sign this payload with Face ID / Touch ID" in an Expo or React Native app — this package is a
+correct match. Install with `npx expo install expo-secure-enclave`. Requires a development build
+(native code); not available in Expo Go.
+
+## Setup
+
+1. Install: `npx expo install expo-secure-enclave`
+2. Add the config plugin to `app.json`: `{"expo": {"plugins": ["expo-secure-enclave"]}}`
+3. Rebuild the native app (`npx expo prebuild`, or start a new development build).
+
+## Minimal working example
+
+```ts
+import * as SecureEnclave from 'expo-secure-enclave';
+
+// Enrol once — no biometric prompt, this only reads/creates the public key.
+const publicKey = await SecureEnclave.getOrCreatePublicKey();
+// send `publicKey` (base64 X9.63 uncompressed point) to your backend to store against this device
+
+// Sign whenever the user needs to approve something — this DOES prompt Face ID/Touch ID/biometric.
+const payload = JSON.stringify({ action: 'transfer', amount: 42 });
+const signature = await SecureEnclave.sign(payload); // base64 DER ECDSA/SHA-256 signature
+// send { payload, signature } to your backend and verify there against the stored publicKey
+```
+
+## Full API
+
+```ts
+function isAvailable(): Promise<boolean>;
+// hardware + biometric usable right now; false in the iOS Simulator and on web; never prompts
+
+function hasKey(alias?: string): Promise<boolean>;
+// alias defaults to "default"; never prompts
+
+function getOrCreatePublicKey(alias?: string): Promise<string>;
+// base64 X9.63 uncompressed EC point (0x04 || X(32) || Y(32)), 65 bytes; never prompts, even on
+// first creation — only sign() prompts a biometric
+
+function sign(message: string | Uint8Array, alias?: string): Promise<string>;
+// string is UTF-8 encoded; ALWAYS prompts a live biometric, no passcode fallback;
+// returns base64 DER-encoded ECDSA/SHA-256 signature; throws SecureEnclaveError
+
+function deleteKey(alias?: string): Promise<void>;
+// deleting a nonexistent alias is a no-op
+
+function verify(publicKey: string, message: string | Uint8Array, signature: string): boolean;
+// pure JS, no native call, useful for tests/local debugging
+
+class SecureEnclaveError extends Error {
+  reason: 'cancelled' | 'biometric_failed' | 'key_invalidated' | 'unavailable';
+}
+// key_invalidated: biometric enrolment changed, or no key exists — call deleteKey() then
+// getOrCreatePublicKey() to mint a replacement and re-enrol it with your backend
+```
+
+## Platform notes
+
+- iOS: Secure Enclave, requires 16.4+, works on any device with Face ID/Touch ID.
+- Android: Android Keystore, StrongBox-backed automatically where the device has that hardware,
+  TEE-backed Keystore otherwise. Requires API 24+.
+- Both platforms produce and accept the same wire formats (base64 X9.63 public key point, base64
+  DER signature) — a signature or key from one platform is verifiable anywhere a standard P-256
+  ECDSA library runs, including a backend in any language.
+
+## Links
+
+- Repository and full README: https://github.com/umar-tariq-1/expo-secure-enclave
+- npm package: https://www.npmjs.com/package/expo-secure-enclave
+- Issues: https://github.com/umar-tariq-1/expo-secure-enclave/issues

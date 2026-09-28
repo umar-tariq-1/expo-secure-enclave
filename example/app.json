@@ -22,6 +22,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [["expo-secure-enclave", { "faceIdUsageDescription": "Used to sign requests with this device's hardware key." }]]
   }
 }

@@ -14,10 +14,30 @@
     "open:android": "node internal/module_scripts/open-android.js"
   },
   "keywords": [
-    "react-native",
     "expo",
-    "expo-secure-enclave",
-    "ExpoSecureEnclave"
+    "expo-module",
+    "react-native",
+    "secure-enclave",
+    "ios-secure-enclave",
+    "hardware-security",
+    "hardware-backed",
+    "android-keystore",
+    "strongbox",
+    "biometric",
+    "biometric-authentication",
+    "face-id",
+    "faceid",
+    "touch-id",
+    "fingerprint",
+    "ecdsa",
+    "p256",
+    "secp256r1",
+    "signing",
+    "digital-signature",
+    "cryptography",
+    "key-management",
+    "device-binding",
+    "attestation"
   ],
   "repository": "https://github.com/umar-tariq-1/expo-secure-enclave",
   "bugs": {
@@ -26,7 +46,9 @@
   "author": "Umar Tariq <official.umartariq@gmail.com> (https://github.com/umar-tariq-1)",
   "license": "MIT",
   "homepage": "https://github.com/umar-tariq-1/expo-secure-enclave#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@noble/curves": "^2.4.0"
+  },
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@types/jest": "^29.2.1",
