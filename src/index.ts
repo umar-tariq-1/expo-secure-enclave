@@ -1,6 +1,9 @@
 import { p256 } from '@noble/curves/nist.js';
 
-import type { SecureEnclaveErrorReason } from './ExpoSecureEnclave.types';
+import type {
+  ExpoSecureEnclaveNativeModule,
+  SecureEnclaveErrorReason,
+} from './ExpoSecureEnclave.types';
 import ExpoSecureEnclaveModule from './ExpoSecureEnclaveModule';
 
 export type { SecureEnclaveErrorReason } from './ExpoSecureEnclave.types';
@@ -48,6 +51,18 @@ function classifyError(error: unknown, { fromSign }: { fromSign: boolean }): Sec
     default:
       return new SecureEnclaveError('biometric_failed', message);
   }
+}
+
+const MODULE_MISSING_MESSAGE =
+  "expo-secure-enclave: this build doesn't include the native module. It needs a development " +
+  'build (it is not part of Expo Go); if you just installed the package, rebuild the app.';
+
+// The native module is missing only in Expo Go or a stale build. There, no key can exist, so the
+// read-only calls answer as on a device with no hardware (`false`, no-op), and anything that would
+// need a key rejects as `unavailable`.
+function requireModule(): ExpoSecureEnclaveNativeModule {
+  if (!ExpoSecureEnclaveModule) throw new SecureEnclaveError('unavailable', MODULE_MISSING_MESSAGE);
+  return ExpoSecureEnclaveModule;
 }
 
 function toBytes(message: string | Uint8Array): Uint8Array {
@@ -112,6 +127,7 @@ function decodeBase64(base64: string): Uint8Array {
  * there) and on web (no hardware key equivalent). Never prompts anything.
  */
 export async function isAvailable(): Promise<boolean> {
+  if (!ExpoSecureEnclaveModule) return false;
   try {
     return await ExpoSecureEnclaveModule.isAvailable();
   } catch (error) {
@@ -124,6 +140,7 @@ export async function isAvailable(): Promise<boolean> {
  * key's existence, unlike using it, doesn't touch the private key material.
  */
 export async function hasKey(alias: string = DEFAULT_ALIAS): Promise<boolean> {
+  if (!ExpoSecureEnclaveModule) return false;
   try {
     return await ExpoSecureEnclaveModule.hasKey(alias);
   } catch (error) {
@@ -141,7 +158,7 @@ export async function hasKey(alias: string = DEFAULT_ALIAS): Promise<boolean> {
  */
 export async function getOrCreatePublicKey(alias: string = DEFAULT_ALIAS): Promise<string> {
   try {
-    return await ExpoSecureEnclaveModule.getOrCreatePublicKey(alias);
+    return await requireModule().getOrCreatePublicKey(alias);
   } catch (error) {
     throw classifyError(error, { fromSign: false });
   }
@@ -166,7 +183,7 @@ export async function sign(
   alias: string = DEFAULT_ALIAS
 ): Promise<string> {
   try {
-    return await ExpoSecureEnclaveModule.sign(alias, encodeBase64(toBytes(message)));
+    return await requireModule().sign(alias, encodeBase64(toBytes(message)));
   } catch (error) {
     throw classifyError(error, { fromSign: true });
   }
@@ -174,6 +191,7 @@ export async function sign(
 
 /** Deletes `alias`'s key pair. Deleting an alias that doesn't exist is a no-op, not an error. */
 export async function deleteKey(alias: string = DEFAULT_ALIAS): Promise<void> {
+  if (!ExpoSecureEnclaveModule) return;
   try {
     await ExpoSecureEnclaveModule.deleteKey(alias);
   } catch (error) {
