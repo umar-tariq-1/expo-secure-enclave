@@ -2,6 +2,7 @@ package expo.modules.secureenclave
 
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
 import android.util.Base64
@@ -16,6 +17,7 @@ import java.math.BigInteger
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Signature
+import java.security.UnrecoverableKeyException
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import kotlin.coroutines.resume
@@ -45,9 +47,7 @@ class ExpoSecureEnclaveModule : Module() {
     Name("ExpoSecureEnclave")
 
     AsyncFunction("isAvailable") {
-      val context = appContext.reactContext ?: return@AsyncFunction false
-      BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
-        BiometricManager.BIOMETRIC_SUCCESS
+      strongBiometricUnavailableReason() == null
     }
 
     AsyncFunction("hasKey") { alias: String ->
@@ -62,6 +62,9 @@ class ExpoSecureEnclaveModule : Module() {
     AsyncFunction("sign") { alias: String, messageBase64: String ->
       val activity = appContext.currentActivity as? FragmentActivity
         ?: throw SecureEnclaveException.unavailable("No foreground activity to show the biometric prompt on.")
+      // Device state first, then the key, in the same order as iOS, so a device with no usable
+      // strong biometric is `unavailable` on both platforms whatever state the key itself is in.
+      strongBiometricUnavailableReason()?.let { throw SecureEnclaveException.unavailable(it) }
       if (!keyStore.containsAlias(fullAlias(alias))) {
         throw SecureEnclaveException.keyInvalidated()
       }
@@ -70,8 +73,14 @@ class ExpoSecureEnclaveModule : Module() {
       val signature = try {
         val privateKey = keyStore.getKey(fullAlias(alias), null) as java.security.PrivateKey
         Signature.getInstance("SHA256withECDSA").apply { initSign(privateKey) }
-      } catch (e: android.security.keystore.KeyPermanentlyInvalidatedException) {
+      } catch (e: KeyPermanentlyInvalidatedException) {
         throw SecureEnclaveException.keyInvalidated()
+      } catch (e: UnrecoverableKeyException) {
+        // Some Keystore implementations report a biometric-invalidated key here, when loading it,
+        // instead of from initSign. Either way the key can never sign again.
+        throw SecureEnclaveException.keyInvalidated()
+      } catch (e: Exception) {
+        throw SecureEnclaveException.unavailable("Could not load the Keystore key: ${e.message}")
       }
 
       val signed = authenticateAndSign(activity, signature, message)
@@ -95,7 +104,25 @@ class ExpoSecureEnclaveModule : Module() {
     return keyStore.getCertificate(fullAlias(alias))?.publicKey
   }
 
+  /// `null` when a strong (Class 3) biometric is enrolled and usable; otherwise why not. The Android
+  /// counterpart of the iOS module's `biometryError()`: `isAvailable` is exactly "this is null", and
+  /// creating a key or signing requires it.
+  private fun strongBiometricUnavailableReason(): String? {
+    val context = appContext.reactContext ?: return "The React context is not available yet."
+    return when (BiometricManager.from(context).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
+      BiometricManager.BIOMETRIC_SUCCESS -> null
+      BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "No strong biometric (fingerprint or face) is enrolled on this device."
+      BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "This device has no strong biometric hardware."
+      BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "The biometric hardware is unavailable right now."
+      BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> "A security update is required before biometrics can be used."
+      else -> "Strong biometric authentication is not supported on this device."
+    }
+  }
+
   private fun createKey(alias: String): java.security.KeyPair {
+    // Checked up front: the Keystore refuses to generate a key bound to biometric authentication
+    // when none is enrolled, but reports that as a generic exception that doesn't say why.
+    strongBiometricUnavailableReason()?.let { throw SecureEnclaveException.unavailable(it) }
     val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, ANDROID_KEYSTORE)
 
     fun spec(useStrongBox: Boolean): KeyGenParameterSpec {
@@ -118,14 +145,18 @@ class ExpoSecureEnclaveModule : Module() {
     }
 
     return try {
-      generator.initialize(spec(useStrongBox = true))
-      generator.generateKeyPair()
-    } catch (e: StrongBoxUnavailableException) {
-      // Most Android devices don't have a StrongBox chip. The TEE-backed Keystore (still
-      // hardware-isolated from the app process, just not a discrete secure element) is the normal
-      // path, not a degraded one.
-      generator.initialize(spec(useStrongBox = false))
-      generator.generateKeyPair()
+      try {
+        generator.initialize(spec(useStrongBox = true))
+        generator.generateKeyPair()
+      } catch (e: StrongBoxUnavailableException) {
+        // Most Android devices don't have a StrongBox chip. The TEE-backed Keystore (still
+        // hardware-isolated from the app process, just not a discrete secure element) is the normal
+        // path, not a degraded one.
+        generator.initialize(spec(useStrongBox = false))
+        generator.generateKeyPair()
+      }
+    } catch (e: Exception) {
+      throw SecureEnclaveException.unavailable("Could not generate a Keystore key: ${e.message}")
     }
   }
 
@@ -226,6 +257,7 @@ internal class SecureEnclaveException private constructor(code: String, message:
         BiometricPrompt.ERROR_HW_UNAVAILABLE,
         BiometricPrompt.ERROR_HW_NOT_PRESENT,
         BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL,
+        BiometricPrompt.ERROR_SECURITY_UPDATE_REQUIRED,
         -> unavailable(message)
 
         else -> biometricFailed(message)

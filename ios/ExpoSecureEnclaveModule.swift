@@ -55,6 +55,12 @@ public class ExpoSecureEnclaveModule: Module {
       guard let message = Data(base64Encoded: messageBase64) else {
         throw SecureEnclaveException.unavailable("The message to sign was not valid base64.")
       }
+      // Device state first, then the key, in the same order as Android. No enrolled biometric, no
+      // passcode, or a biometric lockout is decided here as `unavailable`, identically on both
+      // platforms, rather than by whichever error SecKeyCreateSignature would report for it.
+      if let biometryError = ExpoSecureEnclaveModule.biometryError() {
+        throw SecureEnclaveException.unavailable(biometryError.localizedDescription)
+      }
       guard let keyRef = try ExpoSecureEnclaveModule.findKeyRef(alias: alias) else {
         throw SecureEnclaveException.keyInvalidated()
       }
@@ -127,6 +133,11 @@ public class ExpoSecureEnclaveModule: Module {
   }
 
   private static func createKey(alias: String) throws -> SecKey {
+    // Creating a key requires exactly what `isAvailable` reports, on both platforms: a
+    // `.biometryCurrentSet` key minted with no usable biometric could never sign anything.
+    if let biometryError = biometryError() {
+      throw SecureEnclaveException.unavailable(biometryError.localizedDescription)
+    }
     var accessControlError: Unmanaged<CFError>?
     guard
       let accessControl = SecAccessControlCreateWithFlags(

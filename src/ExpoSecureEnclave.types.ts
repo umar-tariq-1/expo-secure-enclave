@@ -1,16 +1,31 @@
-/** Why a `sign()` call rejected. Mirrors the four outcomes both native platforms classify into. */
+/**
+ * Why a call rejected. Every rejection from this package is a `SecureEnclaveError` carrying exactly
+ * one of these four reasons, with the same meaning on iOS, Android, and web.
+ *
+ * Only `sign()` can reject with `cancelled`, `biometric_failed`, or `key_invalidated`, because it is
+ * the only call that shows a biometric prompt or uses the private key. Every other function
+ * (`isAvailable`, `hasKey`, `getOrCreatePublicKey`, `deleteKey`) rejects only with `unavailable`.
+ */
 export type SecureEnclaveErrorReason =
-  /** The user dismissed the biometric prompt (a Cancel button, the system back gesture, ...). */
+  /** The prompt closed without a result: the user tapped Cancel or dismissed it, or the system
+   *  dismissed it (for example because the app went to the background). Nothing to report; let the
+   *  user try again when they choose to. */
   | 'cancelled'
-  /** The biometric check itself failed or timed out (wrong face/finger, too many attempts, lockout). */
+  /** The biometric check ran and did not succeed (face or finger not recognised, the prompt timed
+   *  out), or signing failed for a reason the platform didn't classify more precisely. Retrying may
+   *  work. */
   | 'biometric_failed'
-  /** No key exists for this alias, or it was invalidated by a biometric enrollment change
-   *  (Face ID/Touch ID re-enrolled, a new fingerprint added, ...). Not retryable: call
-   *  `getOrCreatePublicKey()` again (or `deleteKey()` first) to mint a fresh key, then re-enrol its
-   *  public key with your backend before signing with it. */
+  /** This alias has no usable key: it was never created, was deleted, or the OS permanently
+   *  invalidated it because the enrolled biometrics changed (a fingerprint or face was added or
+   *  removed). Retrying never helps: call `deleteKey()`, then `getOrCreatePublicKey()`, and register
+   *  the new public key with your backend before signing again. */
   | 'key_invalidated'
-  /** No usable hardware/biometric on this device (Simulator, no Secure Enclave/Keystore, no
-   *  biometric enrolled, or no foreground activity to show the prompt on Android). */
+  /** Hardware-backed biometric signing can't be used here right now: no Secure Enclave or Keystore
+   *  (iOS Simulator, web, Expo Go, an app not rebuilt after installing this package), no biometric
+   *  enrolled, no device passcode, biometrics locked out after too many failed attempts, or, on
+   *  Android, no foreground activity to show the prompt on. Retrying right away won't help: fall
+   *  back to another method, or ask the user to finish setting up biometrics. This is also exactly
+   *  the condition under which `isAvailable()` resolves `false`. */
   | 'unavailable';
 
 /** Native module surface, as it crosses the bridge. Not exported for consumers to use directly:

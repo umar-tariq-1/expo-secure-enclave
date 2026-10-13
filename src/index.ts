@@ -8,8 +8,9 @@ export type { SecureEnclaveErrorReason } from './ExpoSecureEnclave.types';
 const DEFAULT_ALIAS = 'default';
 
 /**
- * Thrown by `sign()`, `getOrCreatePublicKey()` and `deleteKey()`. `reason` is always one of the
- * four `SecureEnclaveErrorReason` values, classified the same way on both platforms.
+ * The only error this package rejects with. `reason` is always one of the four
+ * `SecureEnclaveErrorReason` values, with the same meaning on iOS, Android, and web. `message` carries
+ * the platform's own detail, for logging; branch on `reason`, never on `message`.
  */
 export class SecureEnclaveError extends Error {
   constructor(
@@ -21,12 +22,19 @@ export class SecureEnclaveError extends Error {
   }
 }
 
-function classifyError(error: unknown): SecureEnclaveError {
+/**
+ * Collapses any rejection into a `SecureEnclaveError`. Only `sign()` shows a prompt or uses the
+ * private key, so it is the only call that can fail as `cancelled`, `biometric_failed`, or
+ * `key_invalidated`; every other call that fails is, by definition, `unavailable`.
+ */
+function classifyError(error: unknown, { fromSign }: { fromSign: boolean }): SecureEnclaveError {
+  if (error instanceof SecureEnclaveError) return error;
+  const message = error instanceof Error ? error.message : undefined;
+  if (!fromSign) return new SecureEnclaveError('unavailable', message);
   const code =
     error && typeof error === 'object' && 'code' in error
       ? String((error as { code: unknown }).code)
       : '';
-  const message = error instanceof Error ? error.message : undefined;
   switch (code) {
     case 'E_CANCELLED':
       return new SecureEnclaveError('cancelled', message);
@@ -34,6 +42,8 @@ function classifyError(error: unknown): SecureEnclaveError {
       return new SecureEnclaveError('key_invalidated', message);
     case 'E_UNAVAILABLE':
       return new SecureEnclaveError('unavailable', message);
+    // An unrecognised failure from the signing call itself happened at or after the prompt, so it
+    // is reported as a failed (retryable) attempt rather than as missing hardware.
     case 'E_BIOMETRIC_FAILED':
     default:
       return new SecureEnclaveError('biometric_failed', message);
@@ -102,7 +112,11 @@ function decodeBase64(base64: string): Uint8Array {
  * there) and on web (no hardware key equivalent). Never prompts anything.
  */
 export async function isAvailable(): Promise<boolean> {
-  return ExpoSecureEnclaveModule.isAvailable();
+  try {
+    return await ExpoSecureEnclaveModule.isAvailable();
+  } catch (error) {
+    throw classifyError(error, { fromSign: false });
+  }
 }
 
 /**
@@ -110,7 +124,11 @@ export async function isAvailable(): Promise<boolean> {
  * key's existence, unlike using it, doesn't touch the private key material.
  */
 export async function hasKey(alias: string = DEFAULT_ALIAS): Promise<boolean> {
-  return ExpoSecureEnclaveModule.hasKey(alias);
+  try {
+    return await ExpoSecureEnclaveModule.hasKey(alias);
+  } catch (error) {
+    throw classifyError(error, { fromSign: false });
+  }
 }
 
 /**
@@ -125,7 +143,7 @@ export async function getOrCreatePublicKey(alias: string = DEFAULT_ALIAS): Promi
   try {
     return await ExpoSecureEnclaveModule.getOrCreatePublicKey(alias);
   } catch (error) {
-    throw classifyError(error);
+    throw classifyError(error, { fromSign: false });
   }
 }
 
@@ -150,7 +168,7 @@ export async function sign(
   try {
     return await ExpoSecureEnclaveModule.sign(alias, encodeBase64(toBytes(message)));
   } catch (error) {
-    throw classifyError(error);
+    throw classifyError(error, { fromSign: true });
   }
 }
 
@@ -159,7 +177,7 @@ export async function deleteKey(alias: string = DEFAULT_ALIAS): Promise<void> {
   try {
     await ExpoSecureEnclaveModule.deleteKey(alias);
   } catch (error) {
-    throw classifyError(error);
+    throw classifyError(error, { fromSign: false });
   }
 }
 
