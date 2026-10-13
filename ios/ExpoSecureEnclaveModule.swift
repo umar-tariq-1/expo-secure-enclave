@@ -1,4 +1,6 @@
+import CryptoKit
 import ExpoModulesCore
+import LocalAuthentication
 import Security
 
 // A P-256 (secp256r1) key pair created and held ENTIRELY inside the Secure Enclave
@@ -23,14 +25,10 @@ public class ExpoSecureEnclaveModule: Module {
       // No Secure Enclave hardware exists in the Simulator at all.
       return false
       #else
-      var error: Unmanaged<CFError>?
-      let accessControl = SecAccessControlCreateWithFlags(
-        kCFAllocatorDefault,
-        kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-        [.privateKeyUsage, .biometryCurrentSet],
-        &error
-      )
-      return accessControl != nil
+      // A Secure Enclave alone isn't enough: a `.biometryCurrentSet` key can only ever sign once a
+      // biometric is enrolled and usable, so that's part of "available" too, exactly as Android's
+      // `canAuthenticate(BIOMETRIC_STRONG)` check treats it.
+      return SecureEnclave.isAvailable && ExpoSecureEnclaveModule.biometryError() == nil
       #endif
     }
 
@@ -88,6 +86,17 @@ public class ExpoSecureEnclaveModule: Module {
         throw SecureEnclaveException.unavailable("Could not delete the Enclave key (OSStatus \(status)).")
       }
     }
+  }
+
+  /// `nil` when a biometric is enrolled and can be evaluated right now; otherwise LocalAuthentication's
+  /// reason why not (none enrolled, no device passcode, locked out, no biometric hardware).
+  /// `canEvaluatePolicy` only inspects device state: it never shows a prompt.
+  private static func biometryError() -> NSError? {
+    var error: NSError?
+    if LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+      return nil
+    }
+    return error ?? NSError(domain: LAErrorDomain, code: LAError.Code.biometryNotAvailable.rawValue)
   }
 
   /// One tag per alias, namespaced under this app's own bundle id, so multiple apps on the same
