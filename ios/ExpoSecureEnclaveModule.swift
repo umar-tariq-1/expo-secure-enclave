@@ -172,7 +172,7 @@ public class ExpoSecureEnclaveModule: Module {
 /// One `Exception` per error this module can throw. `code` crosses the bridge as `error.code` on
 /// the JS side (Expo Modules' own convention), which `src/index.ts` reads directly to classify
 /// into a `SecureEnclaveErrorReason`.
-internal class SecureEnclaveException: Exception {
+internal class SecureEnclaveException: Exception, @unchecked Sendable {
   private let codeValue: String
   private let messageValue: String
 
