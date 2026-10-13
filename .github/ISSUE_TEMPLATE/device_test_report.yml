@@ -1,0 +1,35 @@
+name: Device test results
+description: Share results from running example/TEST_PLAN.md on a physical device.
+title: "Device test: <device>, <OS version>"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Device results are how the docs' "Confirmed" column gets filled in.
+        Please follow [example/TEST_PLAN.md](https://github.com/umar-tariq-1/expo-secure-enclave/blob/main/example/TEST_PLAN.md) and paste the log entries exactly as the example app shows them.
+  - type: input
+    id: version
+    attributes:
+      label: expo-secure-enclave version or commit
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model and OS version
+      placeholder: "Pixel 8, Android 16 (StrongBox: yes)"
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results table
+      description: The filled-in table from the end of TEST_PLAN.md.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log entries for anything that differed from "Expected"
+      render: text

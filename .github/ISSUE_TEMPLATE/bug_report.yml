@@ -1,0 +1,82 @@
+name: Bug report
+description: Something behaves differently from the documentation.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please check [Troubleshooting](https://github.com/umar-tariq-1/expo-secure-enclave#troubleshooting) first.
+        **Security vulnerabilities**: please don't use this form; see the [security policy](https://github.com/umar-tariq-1/expo-secure-enclave/security/policy).
+  - type: input
+    id: version
+    attributes:
+      label: expo-secure-enclave version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: expo
+    attributes:
+      label: Expo SDK (or React Native version for bare apps)
+      placeholder: "57"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - iOS
+        - Android
+        - Both
+        - Web / Expo Go
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model and OS version
+      description: Simulators and emulators behave differently; please say if you're using one.
+      placeholder: "iPhone 15, iOS 26.1 / Pixel 8, Android 16"
+    validations:
+      required: true
+  - type: dropdown
+    id: biometric
+    attributes:
+      label: Enrolled biometric
+      options:
+        - Face ID
+        - Touch ID
+        - Fingerprint
+        - Face unlock (Android)
+        - None
+        - Not sure
+  - type: dropdown
+    id: available
+    attributes:
+      label: What does isAvailable() return?
+      options:
+        - "true"
+        - "false"
+        - Didn't check
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include the call, and for errors the exact `error.reason` and full `error.message` (on iOS the message ends with a native error domain and code).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A minimal code snippet, or steps in the example app, helps the most.
+    validations:
+      required: true

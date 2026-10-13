@@ -58,3 +58,6 @@ yarn-error.log
 
 # Personal working notes for AI coding assistants, not for the public repo
 CLAUDE.md
+
+# Local launch drafts (posts, PR text, publish checklist): never committed
+/launch-drafts/
