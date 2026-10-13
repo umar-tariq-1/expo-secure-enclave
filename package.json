@@ -49,8 +49,7 @@
     "digital-signature",
     "cryptography",
     "key-management",
-    "device-binding",
-    "attestation"
+    "device-binding"
   ],
   "repository": "https://github.com/umar-tariq-1/expo-secure-enclave",
   "bugs": {
