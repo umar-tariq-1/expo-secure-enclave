@@ -11,6 +11,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import expo.modules.kotlin.exception.CodedException
+import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.math.BigInteger
@@ -59,7 +60,8 @@ class ExpoSecureEnclaveModule : Module() {
       encodePublicKey(publicKey as ECPublicKey)
     }
 
-    AsyncFunction("sign") { alias: String, messageBase64: String ->
+    // `Coroutine`, unlike a plain AsyncFunction body, may suspend: it waits on the biometric prompt.
+    AsyncFunction("sign") Coroutine { alias: String, messageBase64: String ->
       val activity = appContext.currentActivity as? FragmentActivity
         ?: throw SecureEnclaveException.unavailable("No foreground activity to show the biometric prompt on.")
       // Device state first, then the key, in the same order as iOS, so a device with no usable
@@ -233,10 +235,8 @@ class ExpoSecureEnclaveModule : Module() {
  * to classify into a `SecureEnclaveErrorReason`, the same four values the iOS module's own
  * `SecureEnclaveException` maps to.
  */
-internal class SecureEnclaveException private constructor(code: String, message: String) : CodedException(message) {
-  private val codeValue = code
-  override fun getCode() = codeValue
-
+internal class SecureEnclaveException private constructor(code: String, message: String) :
+  CodedException(code, message, null) {
   companion object {
     fun cancelled() = SecureEnclaveException("E_CANCELLED", "The user cancelled the biometric prompt.")
     fun keyInvalidated() = SecureEnclaveException("E_KEY_INVALIDATED", "No key exists for this alias on this device, or it was invalidated by a biometric change.")
