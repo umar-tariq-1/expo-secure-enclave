@@ -53,7 +53,9 @@ forms are valid. Allow high S in your verifier (for `@noble/curves`, pass
 
 ## What happens if the user adds a new fingerprint or re-enrolls Face ID?
 
-The OS permanently invalidates the key. The next `sign()` rejects with `key_invalidated`. Call
+The OS permanently invalidates the key, and the next `sign()` is designed to reject with
+`key_invalidated` (not yet confirmed on a device; on iOS it may currently surface as
+`biometric_failed`, see [#1](https://github.com/umar-tariq-1/expo-secure-enclave/issues/1)). Call
 `deleteKey()`, have the user authenticate another way, create a new key with
 `getOrCreatePublicKey()`, and register it with your server. See the
 [recipe](recipes.md#handle-every-outcome).

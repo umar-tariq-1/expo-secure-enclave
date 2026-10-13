@@ -60,8 +60,10 @@ Upgrading is recommended for everyone, and some error reasons changed (see "Chan
 
 ### Known gaps
 
-- The Android implementation compiles and the example app builds, but it has not yet been run on a
-  physical device. The iOS changes in this release haven't been re-tested on a device either.
+- iOS: the core flow (create a key, sign, verify) was tested on a physical iPhone with 0.1.0; the
+  0.2.0 changes are built but haven't been re-tested on a device.
+- Android: the module compiles and the example app builds, but it hasn't been verified on a
+  physical device yet. Reports are welcome through the "Device test results" issue form.
 - Which native errors iOS reports for a cancelled prompt and for a biometric-invalidated key is not
   yet confirmed, so those two may surface as `biometric_failed`. See `example/TEST_PLAN.md`.
 

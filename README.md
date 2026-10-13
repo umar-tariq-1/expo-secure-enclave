@@ -56,14 +56,21 @@ a signature could only have come from that one device, right after its owner aut
 
 ## Status
 
-Version 0.2.0, tested with Expo SDK 57. Both native modules compile, and the example app builds
-for iOS (Xcode 26.3) and Android. **The Android implementation has not yet been run on a physical
-device.** The iOS implementation is adapted from Secure Enclave code that has been used on real
-devices, but this release has not been re-tested on one yet. A few native error paths (for
-example, exactly which error iOS reports for a cancelled prompt) are still being confirmed; the
+Version 0.2.0, tested with Expo SDK 57.
+
+- **iOS:** the core flow (creating a key, signing with a biometric, verifying the signature) was
+  tested on a physical iPhone with version 0.1.0. The 0.2.0 changes (the stricter `isAvailable()`,
+  the consistent error reasons, the Expo Go fallback) are built but haven't been re-tested on a
+  device yet.
+- **Android:** the module compiles and the example app builds, but it has **not yet been verified
+  on a physical device**.
+
+Some native error paths haven't been observed on any device, including which error iOS reports for
+a cancelled prompt ([#1](https://github.com/umar-tariq-1/expo-secure-enclave/issues/1)) and after
+a Face ID or fingerprint change; the [API reference](#how-each-platform-maps-to-these-reasons)
+marks each one. Device reports are very welcome, especially for Android: run the
 [device test plan](https://github.com/umar-tariq-1/expo-secure-enclave/blob/main/example/TEST_PLAN.md)
-lists them. If something on your device behaves differently from these docs, please
-[open an issue](https://github.com/umar-tariq-1/expo-secure-enclave/issues).
+and share the results with the [device test results form](https://github.com/umar-tariq-1/expo-secure-enclave/issues/new?template=device_test_report.yml).
 <!-- end include -->
 
 **Contents:** [Getting started](#getting-started) · [API reference](#api-reference) ·
@@ -1324,7 +1331,7 @@ presented.
 |---|---|
 | First `getOrCreatePublicKey(alias)` | A new key pair is created in hardware. No prompt. |
 | `sign()` | Requires a fresh biometric every time; the key doesn't change. |
-| Fingerprint or face added or removed, Face ID re-enrolled | The key is permanently invalidated: `sign()` rejects with `key_invalidated`. Delete it, create a new one, and register it again after the user authenticates another way. |
+| Fingerprint or face added or removed, Face ID re-enrolled | The key is permanently invalidated. `sign()` is designed to reject with `key_invalidated` (not yet confirmed on a device; on iOS it may surface as `biometric_failed`, see [#1](https://github.com/umar-tariq-1/expo-secure-enclave/issues/1)). Delete it, create a new one, and register it again after the user authenticates another way. |
 | Biometrics locked out after failed attempts | The key is fine; `sign()` rejects with `unavailable` until the user unlocks biometrics (on iOS, by entering the passcode). |
 | `deleteKey(alias)` | The key is destroyed. |
 | Device backup and restore, or moving to a new device | The key does not come along. iOS keys are created as `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, which excludes them from backups and iCloud Keychain, and Keystore keys never leave the device. After a restore, `hasKey()` is `false`: register the new device. |
@@ -1414,8 +1421,8 @@ Its trade-offs:
   biometric) can't use it, so you need another sign-in method alongside it.
 - **No attestation** of the key or the app.
 - **The prompt text can't be customized yet**, and the Android prompt's text is English only.
-- **Young.** 0.2.0 compiles and builds on both platforms, but hasn't yet been fully tested on
-  physical devices (see [Status](#status)).
+- **Young.** The iOS core flow has been used on a physical iPhone, but Android hasn't been
+  verified on a device yet (see [Status](#status)).
 <!-- end include -->
 
 <!-- include docs/faq.md -->
@@ -1468,7 +1475,9 @@ forms are valid. Allow high S in your verifier (for `@noble/curves`, pass
 
 ### What happens if the user adds a new fingerprint or re-enrolls Face ID?
 
-The OS permanently invalidates the key. The next `sign()` rejects with `key_invalidated`. Call
+The OS permanently invalidates the key, and the next `sign()` is designed to reject with
+`key_invalidated` (not yet confirmed on a device; on iOS it may currently surface as
+`biometric_failed`, see [#1](https://github.com/umar-tariq-1/expo-secure-enclave/issues/1)). Call
 `deleteKey()`, have the user authenticate another way, create a new key with
 `getOrCreatePublicKey()`, and register it with your server. See the
 [recipe](#handle-every-outcome).

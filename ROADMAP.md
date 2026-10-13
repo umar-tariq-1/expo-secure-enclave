@@ -3,12 +3,15 @@
 What's known to be incomplete, and what has to happen before the next release. There are no dates:
 this is a one-person project.
 
-## Before 0.2.0 is published
+## Device verification
+
+0.2.0 was released without a full device pass: the iOS core flow was tested on a physical iPhone
+with 0.1.0, and Android hasn't been run on a device yet.
 
 - [ ] Run [`example/TEST_PLAN.md`](example/TEST_PLAN.md) on a physical iPhone and a physical
-      Android phone.
+      Android phone (reports from anyone are welcome, through the "Device test results" issue form).
 - [ ] If iOS reports a cancelled prompt as `biometric_failed` (test plan step B1), fix
-      [iOS error classification](#ios-signing-errors-are-classified-by-error-code-alone) first.
+      [iOS error classification](#ios-signing-errors-are-classified-by-error-code-alone).
 - [ ] Fill in the "Confirmed" column of the error-mapping table in
       [`docs/api.md`](docs/api.md#how-each-platform-maps-to-these-reasons) from the results, and
       update the "Known gaps" in the changelog.

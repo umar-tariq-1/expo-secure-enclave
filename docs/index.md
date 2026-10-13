@@ -54,14 +54,21 @@ a signature could only have come from that one device, right after its owner aut
 
 ## Status
 
-Version 0.2.0, tested with Expo SDK 57. Both native modules compile, and the example app builds
-for iOS (Xcode 26.3) and Android. **The Android implementation has not yet been run on a physical
-device.** The iOS implementation is adapted from Secure Enclave code that has been used on real
-devices, but this release has not been re-tested on one yet. A few native error paths (for
-example, exactly which error iOS reports for a cancelled prompt) are still being confirmed; the
+Version 0.2.0, tested with Expo SDK 57.
+
+- **iOS:** the core flow (creating a key, signing with a biometric, verifying the signature) was
+  tested on a physical iPhone with version 0.1.0. The 0.2.0 changes (the stricter `isAvailable()`,
+  the consistent error reasons, the Expo Go fallback) are built but haven't been re-tested on a
+  device yet.
+- **Android:** the module compiles and the example app builds, but it has **not yet been verified
+  on a physical device**.
+
+Some native error paths haven't been observed on any device, including which error iOS reports for
+a cancelled prompt ([#1](https://github.com/umar-tariq-1/expo-secure-enclave/issues/1)) and after
+a Face ID or fingerprint change; the [API reference](api.md#how-each-platform-maps-to-these-reasons)
+marks each one. Device reports are very welcome, especially for Android: run the
 [device test plan](https://github.com/umar-tariq-1/expo-secure-enclave/blob/main/example/TEST_PLAN.md)
-lists them. If something on your device behaves differently from these docs, please
-[open an issue](https://github.com/umar-tariq-1/expo-secure-enclave/issues).
+and share the results with the [device test results form](https://github.com/umar-tariq-1/expo-secure-enclave/issues/new?template=device_test_report.yml).
 
 <!-- site-only -->
 ## Where to next

@@ -58,7 +58,7 @@ presented.
 |---|---|
 | First `getOrCreatePublicKey(alias)` | A new key pair is created in hardware. No prompt. |
 | `sign()` | Requires a fresh biometric every time; the key doesn't change. |
-| Fingerprint or face added or removed, Face ID re-enrolled | The key is permanently invalidated: `sign()` rejects with `key_invalidated`. Delete it, create a new one, and register it again after the user authenticates another way. |
+| Fingerprint or face added or removed, Face ID re-enrolled | The key is permanently invalidated. `sign()` is designed to reject with `key_invalidated` (not yet confirmed on a device; on iOS it may surface as `biometric_failed`, see [#1](https://github.com/umar-tariq-1/expo-secure-enclave/issues/1)). Delete it, create a new one, and register it again after the user authenticates another way. |
 | Biometrics locked out after failed attempts | The key is fine; `sign()` rejects with `unavailable` until the user unlocks biometrics (on iOS, by entering the passcode). |
 | `deleteKey(alias)` | The key is destroyed. |
 | Device backup and restore, or moving to a new device | The key does not come along. iOS keys are created as `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, which excludes them from backups and iCloud Keychain, and Keystore keys never leave the device. After a restore, `hasKey()` is `false`: register the new device. |

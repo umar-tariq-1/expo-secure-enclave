@@ -71,5 +71,5 @@ Its trade-offs:
   biometric) can't use it, so you need another sign-in method alongside it.
 - **No attestation** of the key or the app.
 - **The prompt text can't be customized yet**, and the Android prompt's text is English only.
-- **Young.** 0.2.0 compiles and builds on both platforms, but hasn't yet been fully tested on
-  physical devices (see [Status](index.md#status)).
+- **Young.** The iOS core flow has been used on a physical iPhone, but Android hasn't been
+  verified on a device yet (see [Status](index.md#status)).

@@ -14,7 +14,7 @@ Essentials:
 - `key_invalidated` (biometrics changed, or no key): `deleteKey()`, `getOrCreatePublicKey()`, and register the new public key after the user authenticates another way.
 - Server: verify DER ECDSA P-256 with SHA-256 over the exact bytes signed (strings are UTF-8), and accept high-S signatures. SPKI DER = hex `3059301306072a8648ce3d020106082a8648ce3d030107034200` + the 65-byte point.
 - Jest: `jest.mock('expo-secure-enclave', () => require('expo-secure-enclave/mock'))`; `mockControls` simulates cancel, failure, invalidation, unavailability.
-- Status: both platforms compile and the example app builds; the Android implementation has not yet been run on a physical device.
+- Status: iOS core flow (create key, sign, verify) tested on a physical iPhone with 0.1.0; 0.2.0 changes built but not re-tested on a device. Android: compiles and the example app builds; not yet verified on a physical device.
 
 ## Docs
 
