@@ -12,6 +12,8 @@
     "android/src/main",
     "app.plugin.js",
     "expo-module.config.json",
+    "mock.js",
+    "mock.d.ts",
     "llms.txt",
     "CHANGELOG.md",
     "!**/__tests__",
@@ -69,6 +71,7 @@
     "eslint": "~9.39.4",
     "eslint-config-universe": "^15.0.3",
     "expo": "^57.0.25",
+    "expo-modules-core": "~57.0.19",
     "jest": "^29.7.0",
     "jest-expo": "~57.0.5",
     "prettier": "^3.0.0",
@@ -80,6 +83,14 @@
     "preset": "jest-expo",
     "roots": [
       "<rootDir>/src"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|standard-navigation|@noble))",
+      "/node_modules/react-native-reanimated/plugin/",
+      "/node_modules/@react-native/babel-preset/"
     ]
   },
   "peerDependencies": {
