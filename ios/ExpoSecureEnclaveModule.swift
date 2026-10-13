@@ -205,15 +205,18 @@ internal class SecureEnclaveException: Exception {
   static func from(cfError: CFError?) -> SecureEnclaveException {
     guard let cfError else { return .biometricFailed("Something went wrong signing with the Enclave key.") }
     let nsError = cfError as Error as NSError
+    // The raw domain and code ride along in every message: which ones iOS actually reports for a
+    // cancel or a biometric change is still being confirmed on devices, and this is what shows it.
+    let detail = "(\(nsError.domain) \(nsError.code))"
     switch nsError.code {
     case Int(errSecUserCanceled):
-      return .cancelled()
+      return SecureEnclaveException(code: "E_CANCELLED", message: "The user cancelled the biometric prompt. \(detail)")
     case Int(errSecItemNotFound):
-      return .keyInvalidated()
+      return SecureEnclaveException(code: "E_KEY_INVALIDATED", message: "The Enclave key for this alias is gone. \(detail)")
     case Int(errSecAuthFailed):
-      return .biometricFailed("The biometric check didn't match.")
+      return .biometricFailed("The biometric check didn't match. \(detail)")
     default:
-      return .biometricFailed(nsError.localizedDescription)
+      return .biometricFailed("\(nsError.localizedDescription) \(detail)")
     }
   }
 }
