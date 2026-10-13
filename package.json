@@ -1,7 +1,7 @@
 {
   "name": "expo-secure-enclave",
-  "version": "0.1.0",
-  "description": "Hardware-backed ECDSA P-256 signing for Expo apps: iOS Secure Enclave and Android Keystore/StrongBox, gated by Face ID / Touch ID / biometric prompt.",
+  "version": "0.2.0",
+  "description": "Hardware-backed ECDSA P-256 signing for Expo and React Native using the iOS Secure Enclave and Android Keystore/StrongBox, gated by Face ID, Touch ID or fingerprint.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "files": [
@@ -15,6 +15,7 @@
     "mock.js",
     "mock.d.ts",
     "llms.txt",
+    "llms-full.txt",
     "CHANGELOG.md",
     "!**/__tests__",
     "!**/__mocks__"
@@ -26,34 +27,36 @@
     "test": "node internal/module_scripts/test.js",
     "prepare": "node internal/module_scripts/prepare.js",
     "open:ios": "node internal/module_scripts/open-ios.js",
-    "open:android": "node internal/module_scripts/open-android.js"
+    "open:android": "node internal/module_scripts/open-android.js",
+    "docs": "node scripts/sync-docs.mjs",
+    "docs:check": "node scripts/sync-docs.mjs --check"
   },
   "keywords": [
     "expo",
     "expo-module",
     "react-native",
     "secure-enclave",
-    "ios-secure-enclave",
-    "hardware-security",
-    "hardware-backed",
     "android-keystore",
     "strongbox",
+    "tee",
+    "hardware-backed",
     "biometric",
-    "biometric-authentication",
     "face-id",
-    "faceid",
     "touch-id",
-    "fingerprint",
     "ecdsa",
-    "p256",
-    "secp256r1",
+    "p-256",
     "signing",
-    "digital-signature",
+    "device-binding",
+    "passwordless",
+    "challenge-response",
     "cryptography",
-    "key-management",
-    "device-binding"
+    "ios",
+    "android"
   ],
-  "repository": "https://github.com/umar-tariq-1/expo-secure-enclave",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/umar-tariq-1/expo-secure-enclave.git"
+  },
   "bugs": {
     "url": "https://github.com/umar-tariq-1/expo-secure-enclave/issues"
   },

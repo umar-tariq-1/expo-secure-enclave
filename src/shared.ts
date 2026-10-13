@@ -6,8 +6,25 @@ export const DEFAULT_ALIAS = 'default';
 
 /**
  * The only error this package rejects with. `reason` is always one of the four
- * `SecureEnclaveErrorReason` values, with the same meaning on iOS, Android, and web. `message` carries
- * the platform's own detail, for logging; branch on `reason`, never on `message`.
+ * {@link SecureEnclaveErrorReason} values, with the same meaning on iOS, Android, and web.
+ * `message` carries the platform's own detail, for logging; branch on `reason`, never on `message`.
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await SecureEnclave.sign(challenge);
+ * } catch (error) {
+ *   if (error instanceof SecureEnclave.SecureEnclaveError) {
+ *     switch (error.reason) {
+ *       case 'cancelled': return; // the user closed the prompt
+ *       case 'biometric_failed': return offerRetry();
+ *       case 'key_invalidated': return reEnroll(); // deleteKey(), new key, register again
+ *       case 'unavailable': return useFallback();
+ *     }
+ *   }
+ *   throw error;
+ * }
+ * ```
  */
 export class SecureEnclaveError extends Error {
   constructor(

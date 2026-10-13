@@ -4,6 +4,31 @@ import type { ExpoSecureEnclaveNativeModule } from './ExpoSecureEnclave.types';
 import ExpoSecureEnclaveModule from './ExpoSecureEnclaveModule';
 import { DEFAULT_ALIAS, SecureEnclaveError, decodeBase64, encodeBase64, toBytes } from './shared';
 
+/**
+ * Hardware-backed ECDSA P-256 signing for Expo and React Native. Keys are generated in the iOS
+ * Secure Enclave or the Android Keystore (StrongBox-backed where available) and never leave it;
+ * every `sign()` requires a fresh Face ID, Touch ID, or fingerprint check, with no passcode
+ * fallback. Public keys are base64 X9.63 points and signatures are base64 DER ECDSA/SHA-256, the
+ * same on both platforms, so any P-256 library can verify them on a server.
+ *
+ * Every rejection is a {@link SecureEnclaveError} whose `reason` is one of four values. Only
+ * `sign()` prompts, and only `sign()` can reject with anything other than `unavailable`.
+ *
+ * Docs: https://github.com/umar-tariq-1/expo-secure-enclave#readme
+ *
+ * @example
+ * ```ts
+ * import * as SecureEnclave from 'expo-secure-enclave';
+ *
+ * if (await SecureEnclave.isAvailable()) {
+ *   const publicKey = await SecureEnclave.getOrCreatePublicKey(); // no prompt: register it once
+ *   const signature = await SecureEnclave.sign(challengeFromServer); // biometric prompt
+ *   // send { signature } to your server, which verifies it against publicKey
+ * }
+ * ```
+ *
+ * @packageDocumentation
+ */
 export { SecureEnclaveError } from './shared';
 export type { SecureEnclaveErrorReason } from './ExpoSecureEnclave.types';
 
@@ -48,9 +73,28 @@ function requireModule(): ExpoSecureEnclaveNativeModule {
 }
 
 /**
- * Whether hardware-backed signing is usable right now on this device: Secure Enclave / Keystore
- * hardware present, and a biometric enrolled. `false` in the Simulator (no Secure Enclave exists
- * there) and on web (no hardware key equivalent). Never prompts anything.
+ * Whether this device can create a key and sign right now. Never prompts and never creates
+ * anything.
+ *
+ * - iOS: a Secure Enclave is present and `LAContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)`
+ *   succeeds (Face ID or Touch ID enrolled, a passcode set, not locked out, not denied to the app).
+ *   Always `false` in the iOS Simulator.
+ * - Android: `BiometricManager.canAuthenticate(BIOMETRIC_STRONG)` succeeds, i.e. a Class 3
+ *   (strong) biometric is enrolled and usable. A Class 2 ("weak") biometric alone is not enough.
+ * - Web, Expo Go, or a build without the native module: always `false`.
+ *
+ * `false` is exactly when creating a key or signing would reject with `unavailable`. It can change
+ * while the app runs, so check it close to where you use it.
+ *
+ * @returns `true` if `getOrCreatePublicKey()` can create a key and `sign()` can prompt.
+ * @throws {SecureEnclaveError} `unavailable`, only if the native check itself fails unexpectedly.
+ *
+ * @example
+ * ```ts
+ * if (!(await SecureEnclave.isAvailable())) {
+ *   showPasswordSignIn(); // your fallback
+ * }
+ * ```
  */
 export async function isAvailable(): Promise<boolean> {
   if (!ExpoSecureEnclaveModule) return false;
@@ -62,8 +106,19 @@ export async function isAvailable(): Promise<boolean> {
 }
 
 /**
- * Whether a key already exists for `alias` on this device. Never prompts a biometric: checking a
- * key's existence, unlike using it, doesn't touch the private key material.
+ * Whether a key exists for `alias` on this device. Never prompts.
+ *
+ * An existing key isn't necessarily usable: on Android a key invalidated by a biometric change
+ * still exists until deleted (on iOS this is unconfirmed), so handle `key_invalidated` from
+ * `sign()` too. Resolves `false` on web, in Expo Go, and in builds without the native module.
+ *
+ * @param alias - Which key. Defaults to `"default"`.
+ * @throws {SecureEnclaveError} `unavailable`, if the Keychain or Keystore can't be read.
+ *
+ * @example
+ * ```ts
+ * const registered = await SecureEnclave.hasKey();
+ * ```
  */
 export async function hasKey(alias: string = DEFAULT_ALIAS): Promise<boolean> {
   if (!ExpoSecureEnclaveModule) return false;
@@ -75,12 +130,31 @@ export async function hasKey(alias: string = DEFAULT_ALIAS): Promise<boolean> {
 }
 
 /**
- * Returns `alias`'s public key (creating the key pair first if it doesn't exist yet), as a base64
- * X9.63 uncompressed point (`0x04 ‖ X(32) ‖ Y(32)`, 65 bytes), the standard encoding, the same on
- * both platforms. Never prompts a biometric, including on first creation: only `sign()` does.
+ * Returns `alias`'s public key, creating the key pair in the Secure Enclave or Keystore first if
+ * it doesn't exist yet. Never prompts, including on first creation: only `sign()` uses the key.
  *
- * Call this once per alias, up front (e.g. at enrolment), and send the result to your backend to
- * store alongside whatever it uses to identify this device/key.
+ * Creating a key requires exactly what `isAvailable()` checks. An existing key's public key is
+ * returned as is, even if the OS has invalidated it, so call `deleteKey()` first when you need a
+ * fresh key.
+ *
+ * Call it when registering the device, and store the result on your server.
+ *
+ * @param alias - Which key. Defaults to `"default"`.
+ * @returns Standard base64 (88 characters) of the 65-byte uncompressed X9.63 point
+ *   `0x04 ‖ X(32) ‖ Y(32)`. Identical format on iOS and Android. To get SPKI DER, prepend the hex
+ *   header `3059301306072a8648ce3d020106082a8648ce3d030107034200`.
+ * @throws {SecureEnclaveError} `unavailable`: no usable hardware or biometric, iOS Simulator, web,
+ *   Expo Go, or a Keychain/Keystore failure.
+ *
+ * @example
+ * ```ts
+ * const publicKey = await SecureEnclave.getOrCreatePublicKey();
+ * await fetch('https://api.example.com/devices', {
+ *   method: 'POST',
+ *   headers: { 'Content-Type': 'application/json' },
+ *   body: JSON.stringify({ publicKey }),
+ * });
+ * ```
  */
 export async function getOrCreatePublicKey(alias: string = DEFAULT_ALIAS): Promise<string> {
   try {
@@ -91,18 +165,41 @@ export async function getOrCreatePublicKey(alias: string = DEFAULT_ALIAS): Promi
 }
 
 /**
- * Signs `message` with `alias`'s private key, which never leaves the Secure Enclave (iOS) or
- * Keystore/StrongBox (Android). Always prompts a live biometric check first: there is no way to
- * call this without one, and no device-passcode fallback.
+ * Signs `message` with `alias`'s private key inside the Secure Enclave or Keystore. Always shows
+ * the system biometric prompt first; there is no way to sign without a fresh, successful
+ * biometric, and no device-passcode fallback.
  *
- * `message` is either raw bytes, or a string (encoded as UTF-8): pass whatever your backend will
- * hash and verify against, exactly as-is; this function does not alter it. Returns a base64
- * DER-encoded (ASN.1 SEQUENCE of r, s) ECDSA/SHA-256 signature, verifiable with any standard P-256
- * library, see `verify()` for a ready-made one.
+ * Checks run in the same order on both platforms: device state (`unavailable`), then the key
+ * (`key_invalidated`), then the prompt (`cancelled` or `biometric_failed`). On Android the prompt
+ * reads "Authenticate" / "Confirm your identity to sign" / "Cancel"; these texts can't be changed
+ * yet. Await one `sign()` before starting another.
  *
- * Throws `SecureEnclaveError`. `reason: 'key_invalidated'` means the enrolled biometrics changed
- * (or no key ever existed); the old key is unusable, call `deleteKey()` then
- * `getOrCreatePublicKey()` to mint a replacement and re-enrol it with your backend.
+ * @param message - A string is signed as its UTF-8 bytes; a `Uint8Array` exactly as given. Nothing
+ *   is added, so your server must verify the same bytes. Keep it compact (a challenge, a canonical
+ *   request string, or a hash): it crosses the native bridge in full.
+ * @param alias - Which key. Defaults to `"default"`.
+ * @returns Standard base64 of a DER `SEQUENCE { r, s }` ECDSA P-256 signature over SHA-256 of
+ *   `message` (usually 70 to 72 bytes). S is not normalized, so verifiers must accept high-S
+ *   signatures. JOSE and Web Crypto need it converted to the raw 64-byte `r ‖ s` form.
+ * @throws {SecureEnclaveError} with `reason`:
+ *   - `cancelled`: the prompt was dismissed. Nothing to report.
+ *   - `biometric_failed`: not recognized, timed out, or an unclassified signing failure. Retry.
+ *   - `key_invalidated`: no key for `alias`, or the OS invalidated it after a biometric change. It
+ *     can never sign again: `deleteKey()`, then `getOrCreatePublicKey()`, and register the new key
+ *     after the user authenticates another way.
+ *   - `unavailable`: no usable biometric right now (none enrolled, locked out, no hardware,
+ *     Simulator, web, Expo Go), or on Android no foreground activity. Fall back.
+ *
+ * @example
+ * ```ts
+ * try {
+ *   const signature = await SecureEnclave.sign(challenge);
+ *   await sendToServer({ challenge, signature });
+ * } catch (error) {
+ *   if (error instanceof SecureEnclave.SecureEnclaveError && error.reason === 'cancelled') return;
+ *   throw error;
+ * }
+ * ```
  */
 export async function sign(
   message: string | Uint8Array,
@@ -115,7 +212,20 @@ export async function sign(
   }
 }
 
-/** Deletes `alias`'s key pair. Deleting an alias that doesn't exist is a no-op, not an error. */
+/**
+ * Deletes `alias`'s key pair. Never prompts. Deleting a key that doesn't exist is a no-op, not an
+ * error. A deleted key can never sign again, though its past signatures still verify against its
+ * public key.
+ *
+ * @param alias - Which key. Defaults to `"default"`.
+ * @throws {SecureEnclaveError} `unavailable`, if the Keychain or Keystore can't be written.
+ *
+ * @example
+ * ```ts
+ * await SecureEnclave.deleteKey();
+ * const freshPublicKey = await SecureEnclave.getOrCreatePublicKey();
+ * ```
+ */
 export async function deleteKey(alias: string = DEFAULT_ALIAS): Promise<void> {
   if (!ExpoSecureEnclaveModule) return;
   try {
@@ -126,14 +236,20 @@ export async function deleteKey(alias: string = DEFAULT_ALIAS): Promise<void> {
 }
 
 /**
- * Verifies a signature from `sign()` against the public key from `getOrCreatePublicKey()`. Pure
- * JS, no native call, no device required. Use it for local testing, or anywhere you need to check
- * a signature without a round trip to your backend.
+ * Checks a `sign()` signature against a `getOrCreatePublicKey()` public key, in pure JavaScript,
+ * synchronously, with no native call or device. Accepts both low-S and high-S signatures. Useful
+ * in tests and for local checks; your server must still verify signatures itself.
  *
- * `lowS: false` is intentional: Apple's Security framework and Android's Keystore don't guarantee
- * a canonical low-S signature the way most JS ECDSA libraries default to expecting, and a
- * genuinely valid signature can carry either; accepting both here means this never spuriously
- * rejects a real native signature over a non-canonical (but still mathematically valid) `s` value.
+ * @param publicKeyBase64 - From `getOrCreatePublicKey()`.
+ * @param message - Exactly what was passed to `sign()`.
+ * @param signatureBase64 - From `sign()`.
+ * @returns `true` for a valid signature; `false` for an invalid one or malformed input. Never
+ *   throws.
+ *
+ * @example
+ * ```ts
+ * const ok = SecureEnclave.verify(publicKey, 'hello', signature);
+ * ```
  */
 export function verify(
   publicKeyBase64: string,
@@ -141,6 +257,8 @@ export function verify(
   signatureBase64: string
 ): boolean {
   try {
+    // `lowS: false`: the Secure Enclave and Android Keystore don't normalize S, so about half of
+    // all genuine signatures have a high S. noble rejects those by default.
     return p256.verify(
       decodeBase64(signatureBase64),
       toBytes(message),

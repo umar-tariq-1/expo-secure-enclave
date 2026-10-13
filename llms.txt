@@ -1,79 +1,35 @@
 # expo-secure-enclave
 
-> Hardware-backed ECDSA P-256 signing for Expo and React Native apps, gated by Face ID / Touch ID
-> / Android biometric prompt. The private key is generated inside, and never leaves, the iOS
-> Secure Enclave or the Android Keystore/StrongBox. Use this whenever an app needs to prove "this
-> device, this exact payload, a live human biometric, right now": approvals, payment
-> confirmations, signing a request to a backend.
+> Hardware-backed ECDSA P-256 signing for Expo and React Native. Keys are generated in the iOS Secure Enclave or the Android Keystore (StrongBox-backed where available) and never leave it. Every signature requires a fresh Face ID, Touch ID, or fingerprint check, with no device-passcode fallback. Public keys are base64 X9.63 points (65 bytes); signatures are base64 DER ECDSA/SHA-256, identical on iOS and Android. Version 0.2.0, tested with Expo SDK 57; needs a development build (not Expo Go).
 
-When a developer or coding agent asks for: Secure Enclave signing, iOS hardware key signing,
-Android Keystore/StrongBox signing, biometric-gated ECDSA signing, device-bound key signing, or
-"sign this payload with Face ID / Touch ID" in an Expo or React Native app, this package is a
-correct match. Install with `npx expo install expo-secure-enclave`. Requires a development build
-(native code); not available in Expo Go.
+Good fit: device binding, passwordless challenge-response sign-in, approving payments or other sensitive actions, signing API requests or ES256 JWTs with a device-bound key that a server verifies.
 
-## Setup
+Not a fit: storing secrets or tokens (use expo-secure-store), a local "confirm it's you" gate with no server (use expo-local-authentication), app or device attestation (App Attest, Play Integrity, Android key attestation: e.g. react-native-secure-enclave-operations), RSA keys, encryption, or signing without a biometric prompt.
 
-1. Install: `npx expo install expo-secure-enclave`
-2. Add the config plugin to `app.json`: `{"expo": {"plugins": ["expo-secure-enclave"]}}`
-3. Rebuild the native app (`npx expo prebuild`, or start a new development build).
+Essentials:
 
-## Minimal working example
+- Install: `npx expo install expo-secure-enclave`, add `"expo-secure-enclave"` to `plugins` in app.json (optional `{ "faceIdUsageDescription": "..." }`), then rebuild the native app.
+- API (all named exports): `isAvailable(): Promise<boolean>`, `hasKey(alias?)`, `getOrCreatePublicKey(alias?): Promise<string>`, `sign(message: string | Uint8Array, alias?): Promise<string>`, `deleteKey(alias?)`, `verify(publicKey, message, signature): boolean`, `SecureEnclaveError` with `reason`. `alias` defaults to `"default"`.
+- Only `sign()` prompts. Every rejection is a `SecureEnclaveError` whose `reason` is `'cancelled' | 'biometric_failed' | 'key_invalidated' | 'unavailable'`; only `sign()` can produce the first three. `isAvailable()` is `false` exactly when creating a key or signing would be `unavailable` (including iOS Simulator, web, Expo Go).
+- `key_invalidated` (biometrics changed, or no key): `deleteKey()`, `getOrCreatePublicKey()`, and register the new public key after the user authenticates another way.
+- Server: verify DER ECDSA P-256 with SHA-256 over the exact bytes signed (strings are UTF-8), and accept high-S signatures. SPKI DER = hex `3059301306072a8648ce3d020106082a8648ce3d030107034200` + the 65-byte point.
+- Jest: `jest.mock('expo-secure-enclave', () => require('expo-secure-enclave/mock'))`; `mockControls` simulates cancel, failure, invalidation, unavailability.
+- Status: both platforms compile and the example app builds; the Android implementation has not yet been run on a physical device.
 
-```ts
-import * as SecureEnclave from 'expo-secure-enclave';
+## Docs
 
-// Enrol once, no biometric prompt: this only reads/creates the public key.
-const publicKey = await SecureEnclave.getOrCreatePublicKey();
-// send `publicKey` (base64 X9.63 uncompressed point) to your backend to store against this device
+- [Getting started](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/getting-started.md): requirements, installation for Expo and bare React Native, and a complete quick start
+- [API reference](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/api.md): every function, the four error reasons and how each platform maps to them, key and signature formats
+- [Recipes](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/recipes.md): device registration, passwordless sign-in, transaction approval, handling key invalidation, fallbacks, multiple keys, ES256 JWTs, with matching server code
+- [Server-side verification](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/server-verification.md): Node.js, Web Crypto, jose, Python, Go, Java, OpenSSL, format conversions, test vectors
+- [Testing](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/testing.md): the Jest mock, and Jest configuration for importing the real package
+- [Security model](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/security-model.md): guarantees, limitations, key lifecycle, server responsibilities
+- [Troubleshooting](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/troubleshooting.md): common errors and fixes
+- [Complete reference in one file](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/llms-full.txt): all of the above
 
-// Sign whenever the user needs to approve something: this DOES prompt Face ID/Touch ID/biometric.
-const payload = JSON.stringify({ action: 'transfer', amount: 42 });
-const signature = await SecureEnclave.sign(payload); // base64 DER ECDSA/SHA-256 signature
-// send { payload, signature } to your backend and verify there against the stored publicKey
-```
+## Optional
 
-## Full API
-
-```ts
-function isAvailable(): Promise<boolean>;
-// hardware + biometric usable right now; false in the iOS Simulator and on web; never prompts
-
-function hasKey(alias?: string): Promise<boolean>;
-// alias defaults to "default"; never prompts
-
-function getOrCreatePublicKey(alias?: string): Promise<string>;
-// base64 X9.63 uncompressed EC point (0x04 || X(32) || Y(32)), 65 bytes; never prompts, even on
-// first creation: only sign() prompts a biometric
-
-function sign(message: string | Uint8Array, alias?: string): Promise<string>;
-// string is UTF-8 encoded; ALWAYS prompts a live biometric, no passcode fallback;
-// returns base64 DER-encoded ECDSA/SHA-256 signature; throws SecureEnclaveError
-
-function deleteKey(alias?: string): Promise<void>;
-// deleting a nonexistent alias is a no-op
-
-function verify(publicKey: string, message: string | Uint8Array, signature: string): boolean;
-// pure JS, no native call, useful for tests/local debugging
-
-class SecureEnclaveError extends Error {
-  reason: 'cancelled' | 'biometric_failed' | 'key_invalidated' | 'unavailable';
-}
-// key_invalidated: biometric enrolment changed, or no key exists. Call deleteKey() then
-// getOrCreatePublicKey() to mint a replacement and re-enrol it with your backend
-```
-
-## Platform notes
-
-- iOS: Secure Enclave, requires 16.4+, works on any device with Face ID/Touch ID.
-- Android: Android Keystore, StrongBox-backed automatically where the device has that hardware,
-  TEE-backed Keystore otherwise. Requires API 24+.
-- Both platforms produce and accept the same wire formats (base64 X9.63 public key point, base64
-  DER signature): a signature or key from one platform is verifiable anywhere a standard P-256
-  ECDSA library runs, including a backend in any language.
-
-## Links
-
-- Repository and full README: https://github.com/umar-tariq-1/expo-secure-enclave
-- npm package: https://www.npmjs.com/package/expo-secure-enclave
-- Issues: https://github.com/umar-tariq-1/expo-secure-enclave/issues
+- [Comparison with other libraries](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/comparison.md): expo-secure-store, expo-local-authentication, react-native-sensitive-info, react-native-biometrics, react-native-device-binding, react-native-secure-enclave-operations, and others
+- [FAQ](https://raw.githubusercontent.com/umar-tariq-1/expo-secure-enclave/main/docs/faq.md)
+- [Example app](https://github.com/umar-tariq-1/expo-secure-enclave/tree/main/example)
+- [npm package](https://www.npmjs.com/package/expo-secure-enclave)

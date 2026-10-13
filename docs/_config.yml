@@ -1,0 +1,32 @@
+# GitHub Pages site for expo-secure-enclave, built from this folder. Every page here is also
+# copied into the README and llms-full.txt by `npm run docs`, so edit the pages, not those files.
+title: expo-secure-enclave
+description: >-
+  Hardware-backed ECDSA P-256 signing for Expo and React Native, using the iOS Secure Enclave and
+  the Android Keystore/StrongBox, gated by Face ID, Touch ID or fingerprint.
+url: https://umar-tariq-1.github.io
+baseurl: /expo-secure-enclave
+lang: en
+
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+
+search_enabled: true
+heading_anchors: true
+aux_links:
+  GitHub: https://github.com/umar-tariq-1/expo-secure-enclave
+  npm: https://www.npmjs.com/package/expo-secure-enclave
+aux_links_new_tab: true
+gh_edit_link: true
+gh_edit_repository: https://github.com/umar-tariq-1/expo-secure-enclave
+gh_edit_branch: main
+gh_edit_source: docs
+gh_edit_view_mode: edit
+footer_content: >-
+  MIT licensed. Not affiliated with Apple, Google, or Expo.
