@@ -55,3 +55,6 @@ yarn-error.log
 
 # Expo
 .expo/*
+
+# Personal working notes for AI coding assistants, not for the public repo
+CLAUDE.md
