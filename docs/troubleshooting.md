@@ -44,7 +44,7 @@ Check, in order:
 
 1. **The bytes.** The server must verify exactly the string or bytes passed to `sign()`. Send the
    signed string itself; don't rebuild it from parsed JSON.
-2. **Low S.** If roughly half the signatures fail, your library rejects high-S signatures. See
+2. **Low S.** If a seemingly random share of signatures fails, your library rejects high-S ones. See
    [Low-S signatures](server-verification.md#low-s-signatures).
 3. **Hashing.** Don't hash the message yourself before passing it to a verify function that hashes.
 4. **Formats.** The signature is DER, not raw `r ‖ s`; the public key is a raw X9.63 point, not

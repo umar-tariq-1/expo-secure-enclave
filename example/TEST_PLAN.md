@@ -87,7 +87,7 @@ Use the alias `default` unless a step says otherwise. A log entry reading
 | G2 | Create a key, uninstall the app, reinstall, `hasKey` | Android: `false`. iOS: **record** (Keychain items can survive an uninstall). If `true`, record whether `sign` works with it. |
 | G3 | Run the example in **Expo Go** (`npx expo start`, then open it in Expo Go) | The app opens without crashing; `isAvailable` is `false`; `getOrCreatePublicKey` and `sign` show `reason=unavailable` with a message about needing a development build |
 | G4 | Optional, destructive: remove the device passcode entirely, then set it and a biometric up again | Record `isAvailable`, `hasKey`, and `sign` for the old key afterwards (expected: the old key is unusable) |
-| G5 | Sign on the iPhone and on the Android phone against the same server | Both verify as `VALID`: same formats on both platforms |
+| G5 | Sign on the iPhone and on the Android phone against the same server, about 10 times each | All `VALID`: same formats on both platforms. **Record** how many the server logs as `high S` versus `low S` per platform (both are valid; this confirms whether the hardware normalizes S). |
 
 ## Results
 

@@ -406,7 +406,7 @@ based on the platform documentation.
 |---|---|---|---|---|
 | No biometric enrolled, no passcode, no biometric hardware | `unavailable` | `canEvaluatePolicy` fails; checked before creating a key and before signing | `canAuthenticate(BIOMETRIC_STRONG)` fails; same checks | Not yet |
 | Biometrics locked out after too many failures | `unavailable` | `canEvaluatePolicy` fails, so the next `sign()` is `unavailable`. The attempt that causes the lockout may report `biometric_failed`. | `ERROR_LOCKOUT` or `ERROR_LOCKOUT_PERMANENT` from the prompt | Not yet |
-| User cancels or dismisses the prompt | `cancelled` | `errSecUserCanceled`. If iOS reports a cancel with a different error code, it currently surfaces as `biometric_failed` ([tracked](https://github.com/umar-tariq-1/expo-secure-enclave/issues)). | `ERROR_USER_CANCELED`, `ERROR_NEGATIVE_BUTTON`, `ERROR_CANCELED` | Not yet |
+| User cancels or dismisses the prompt | `cancelled` | `errSecUserCanceled`. If iOS reports a cancel with a different error code, it currently surfaces as `biometric_failed` ([#1](https://github.com/umar-tariq-1/expo-secure-enclave/issues/1)). | `ERROR_USER_CANCELED`, `ERROR_NEGATIVE_BUTTON`, `ERROR_CANCELED` | Not yet |
 | Face or finger not recognized, timeout | `biometric_failed` | `errSecAuthFailed`, and any unrecognized signing error | `ERROR_TIMEOUT`, `ERROR_UNABLE_TO_PROCESS`, `ERROR_VENDOR`, and any other prompt error | Not yet |
 | No key for this alias | `key_invalidated` | Keychain lookup finds nothing | Keystore has no such alias | Logic covered by unit tests |
 | Key invalidated by a biometric change | `key_invalidated` | Expected via `errSecItemNotFound`; which error iOS actually reports is not yet confirmed | `KeyPermanentlyInvalidatedException` or `UnrecoverableKeyException` when loading the key | Not yet |
@@ -927,9 +927,11 @@ iOS and Android produce identical formats.
 
 #### Low-S signatures
 
-ECDSA signatures come in two equally valid forms, with a "low" or a "high" S value. The Secure
-Enclave and Android Keystore don't normalize S, so roughly half of all signatures have a high S.
-Some libraries reject high-S signatures by default, which looks like random verification failures.
+ECDSA signatures come in two equally valid forms, with a "low" or a "high" S value. Neither the
+Secure Enclave nor the Android Keystore guarantees the low form, and this package passes their
+signatures through unchanged, so expect high-S signatures (if S isn't normalized, about half of
+them). Some libraries reject high-S signatures by default, which looks like random verification
+failures.
 Every verifier on this page accepts both. If yours doesn't, find its option for allowing high S
 (for example, `@noble/curves` needs `lowS: false`, which this package's own `verify()` passes).
 
@@ -1432,10 +1434,11 @@ base64 DER ECDSA/SHA-256 signature over the exact bytes the app signed, using an
 [Server-side verification](#server-side-verification) has tested code for Node.js, Web Crypto, `jose`,
 Python, Go, Java, and OpenSSL, plus test vectors.
 
-### Why does my server reject about half of the signatures?
+### Why does my server reject some valid signatures?
 
-Your ECDSA library probably requires "low-S" signatures. The Secure Enclave and Android Keystore
-produce either form, and both are valid. Allow high S in your verifier (for `@noble/curves`, pass
+If it's a seemingly random share of them (often around half), your ECDSA library probably requires
+"low-S" signatures. The Secure Enclave and Android Keystore don't guarantee that form, and both
+forms are valid. Allow high S in your verifier (for `@noble/curves`, pass
 `lowS: false`). See [Low-S signatures](#low-s-signatures).
 
 ### What happens if the user adds a new fingerprint or re-enrolls Face ID?
@@ -1536,7 +1539,7 @@ Check, in order:
 
 1. **The bytes.** The server must verify exactly the string or bytes passed to `sign()`. Send the
    signed string itself; don't rebuild it from parsed JSON.
-2. **Low S.** If roughly half the signatures fail, your library rejects high-S signatures. See
+2. **Low S.** If a seemingly random share of signatures fails, your library rejects high-S ones. See
    [Low-S signatures](#low-s-signatures).
 3. **Hashing.** Don't hash the message yourself before passing it to a verify function that hashes.
 4. **Formats.** The signature is DER, not raw `r ‖ s`; the public key is a raw X9.63 point, not

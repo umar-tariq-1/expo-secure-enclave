@@ -33,9 +33,11 @@ iOS and Android produce identical formats.
 
 ### Low-S signatures
 
-ECDSA signatures come in two equally valid forms, with a "low" or a "high" S value. The Secure
-Enclave and Android Keystore don't normalize S, so roughly half of all signatures have a high S.
-Some libraries reject high-S signatures by default, which looks like random verification failures.
+ECDSA signatures come in two equally valid forms, with a "low" or a "high" S value. Neither the
+Secure Enclave nor the Android Keystore guarantees the low form, and this package passes their
+signatures through unchanged, so expect high-S signatures (if S isn't normalized, about half of
+them). Some libraries reject high-S signatures by default, which looks like random verification
+failures.
 Every verifier on this page accepts both. If yours doesn't, find its option for allowing high S
 (for example, `@noble/curves` needs `lowS: false`, which this package's own `verify()` passes).
 

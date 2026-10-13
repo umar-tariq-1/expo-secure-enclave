@@ -44,10 +44,11 @@ base64 DER ECDSA/SHA-256 signature over the exact bytes the app signed, using an
 [Server-side verification](server-verification.md) has tested code for Node.js, Web Crypto, `jose`,
 Python, Go, Java, and OpenSSL, plus test vectors.
 
-## Why does my server reject about half of the signatures?
+## Why does my server reject some valid signatures?
 
-Your ECDSA library probably requires "low-S" signatures. The Secure Enclave and Android Keystore
-produce either form, and both are valid. Allow high S in your verifier (for `@noble/curves`, pass
+If it's a seemingly random share of them (often around half), your ECDSA library probably requires
+"low-S" signatures. The Secure Enclave and Android Keystore don't guarantee that form, and both
+forms are valid. Allow high S in your verifier (for `@noble/curves`, pass
 `lowS: false`). See [Low-S signatures](server-verification.md#low-s-signatures).
 
 ## What happens if the user adds a new fingerprint or re-enrolls Face ID?

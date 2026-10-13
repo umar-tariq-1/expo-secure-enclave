@@ -23,6 +23,21 @@ function verifySignature(publicKeyBase64, message, signatureBase64) {
   return verify('sha256', Buffer.from(message, 'utf8'), publicKey, Buffer.from(signatureBase64, 'base64'));
 }
 
+// Whether S is in the upper half of the curve order. Both forms are valid; this only records how
+// often a device produces each (see TEST_PLAN.md, G5).
+const P256_ORDER = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551n;
+function sForm(signatureBase64) {
+  try {
+    const der = Buffer.from(signatureBase64, 'base64');
+    const rLength = der[3];
+    const sLength = der[5 + rLength];
+    const s = BigInt(`0x${der.subarray(6 + rLength, 6 + rLength + sLength).toString('hex')}`);
+    return s > P256_ORDER / 2n ? 'high S' : 'low S';
+  } catch {
+    return 'unparsable';
+  }
+}
+
 function send(response, status, body) {
   response.writeHead(status, { 'Content-Type': 'application/json' });
   response.end(JSON.stringify(body));
@@ -38,7 +53,7 @@ createServer(async (request, response) => {
     try {
       const { publicKey, message, signature } = JSON.parse(body);
       const valid = verifySignature(publicKey, message, signature);
-      console.log(`verify: ${valid ? 'VALID' : 'INVALID'} for ${JSON.stringify(message)}`);
+      console.log(`verify: ${valid ? 'VALID' : 'INVALID'} (${sForm(signature)}) for ${JSON.stringify(message)}`);
       return send(response, 200, { valid });
     } catch (error) {
       return send(response, 400, { error: String(error) });

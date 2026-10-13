@@ -257,8 +257,8 @@ export function verify(
   signatureBase64: string
 ): boolean {
   try {
-    // `lowS: false`: the Secure Enclave and Android Keystore don't normalize S, so about half of
-    // all genuine signatures have a high S. noble rejects those by default.
+    // `lowS: false`: neither the Secure Enclave nor the Android Keystore guarantees a low S, so
+    // genuine signatures can be high-S, which noble rejects by default.
     return p256.verify(
       decodeBase64(signatureBase64),
       toBytes(message),
